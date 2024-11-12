@@ -1,6 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
+#include <ArduinoJson.h>  // Include the ArduinoJson library for JSON parsing
 
 #define LED_PIN LED_BUILTIN
 
@@ -21,22 +22,33 @@ void setup(void) {
   Serial.print("Connect to the web server at: http://");
   Serial.println(WiFi.softAPIP());
 
-  // Define a single POST route `/request` to control the LED based on code
-  server.on("/request", HTTP_POST, []() {  
+  // Define a single POST route `/request` to control the LED based on multiple codes
+  server.on("/request", HTTP_POST, []() {
     if (server.hasArg("plain")) {  // Check if there's a request body
       String postData = server.arg("plain");
 
-      if (postData == "100") {  // If the argument is "100", turn LED on
-        digitalWrite(LED_PIN, LOW);  // Set LED on (assuming LOW is ON)
-        server.send(200, "text/plain", "LED is ON");
-      } else if (postData == "200") {  // If the argument is "200", turn LED off
-        digitalWrite(LED_PIN, HIGH);  // Set LED off (assuming HIGH is OFF)
-        server.send(200, "text/plain", "LED is OFF");
-      } else {
-        server.send(400, "text/plain", "Bad Request: Invalid argument");
+      // Parse the JSON data
+      StaticJsonDocument<200> jsonDoc;  // Adjust size as needed
+      DeserializationError error = deserializeJson(jsonDoc, postData);
+
+      if (error) {
+        server.send(400, "text/plain", "Bad Request: Invalid JSON format");
+        return;
       }
+
+
+      if (jsonDoc.containsKey("code1") && jsonDoc["code1"] == 100) {
+        digitalWrite(LED_PIN, LOW);  // Turn LED on
+        server.send(200, "text/plain", "LED turned on");
+      }
+      
+      if (jsonDoc.containsKey("code2") && jsonDoc["code2"] == 200) {
+        digitalWrite(LED_PIN, HIGH);  // Turn LED off
+        server.send(200, "text/plain", "LED turned off");
+      }
+
     } else {
-      server.send(400, "text/plain", "Bad Request: No argument provided");
+      server.send(400, "text/plain", "Bad Request: No data provided");
     }
   });
 
