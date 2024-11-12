@@ -12,7 +12,7 @@ ESP8266WebServer server(80);   // Instantiate server at port 80 (HTTP port)
 void setup(void) {
   // Set up the LED pin mode and turn it off initially
   pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, LOW);  // LED on initially
+  digitalWrite(LED_PIN, LOW);  // LED off initially
 
   // Set up WiFi access point
   WiFi.softAP(ssid, password);
@@ -21,15 +21,23 @@ void setup(void) {
   Serial.print("Connect to the web server at: http://");
   Serial.println(WiFi.softAPIP());
 
-  // Define web server POST routes
-  server.on("/LEDOn", HTTP_POST, []() {  // Turn LED on with POST request
-    digitalWrite(LED_PIN, LOW);  // Set LED on
-    server.send(200, "text/plain", "LED is ON");
-  });
+  // Define a single POST route `/request` to control the LED based on code
+  server.on("/request", HTTP_POST, []() {  
+    if (server.hasArg("plain")) {  // Check if there's a request body
+      String postData = server.arg("plain");
 
-  server.on("/LEDOff", HTTP_POST, []() {  // Turn LED off with POST request
-    digitalWrite(LED_PIN, HIGH);  // Set LED off
-    server.send(200, "text/plain", "LED is OFF");
+      if (postData == "100") {  // If the argument is "100", turn LED on
+        digitalWrite(LED_PIN, LOW);  // Set LED on (assuming LOW is ON)
+        server.send(200, "text/plain", "LED is ON");
+      } else if (postData == "200") {  // If the argument is "200", turn LED off
+        digitalWrite(LED_PIN, HIGH);  // Set LED off (assuming HIGH is OFF)
+        server.send(200, "text/plain", "LED is OFF");
+      } else {
+        server.send(400, "text/plain", "Bad Request: Invalid argument");
+      }
+    } else {
+      server.send(400, "text/plain", "Bad Request: No argument provided");
+    }
   });
 
   server.begin();
