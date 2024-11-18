@@ -3,6 +3,7 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
+#include <ArduinoJson.h>
 
 Adafruit_PWMServoDriver pwm;
 
@@ -44,75 +45,82 @@ void setup() {
   server.on("/request", HTTP_OPTIONS, handleCORSOptions);
 
   server.on("/request", HTTP_POST, []() {
-  addCORSHeaders();  // Add CORS headers to the response
+    addCORSHeaders();
+    DynamicJsonDocument doc(1024);
+    DeserializationError error = deserializeJson(doc, server.arg("plain"));
+
+    if (error) {
+      server.send(400, "text/plain", "Invalid JSON");
+      return;
+    }
+    
+    String operation = doc["operation"];
+    int pulseWidth = 1500;  //default value
   
-  String operation = server.arg("operation");  
-  int pulseWidth = 1500;  //default value
-  
-  if (operation == "moveForward") {
-    pulseWidth = 1900;
-    pwm.writeMicroseconds(THROTTLE_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Moving forward: " + String(pulseWidth) + " µs");
-  }
-  else if (operation == "moveBack") {
-    pulseWidth = 1100;
-    pwm.writeMicroseconds(THROTTLE_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Moving backward: " + String(pulseWidth) + " µs");
-  }
-  else if (operation == "turnLeft") {
-    pulseWidth = 1100;
-    pwm.writeMicroseconds(ROTATION_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Turning left: " + String(pulseWidth) + " µs");
-  }
-  else if (operation == "turnRight") {
-    pulseWidth = 1900;
-    pwm.writeMicroseconds(ROTATION_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Turning right: " + String(pulseWidth) + " µs");
-  }
-  else if (operation == "turretLeft") {
-    pulseWidth = 1100;
-    pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Turret to the left: " + String(pulseWidth) + " µs");
-  }
-  else if (operation == "turretRight") {
-    pulseWidth = 1900;
-    pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Turret to the right: " + String(pulseWidth) + " µs");
-  }
-  else if (operation == "turretOnOff") {
-    pulseWidth = 1000;  
-    pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Turret on/off: " + String(pulseWidth) + " µs");
-  }
-  else if (operation == "cannonUp") {
-    pulseWidth = 1100;  
-    pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Cannon up: " + String(pulseWidth) + " µs");
-  }
-  else if (operation == "cannonDown") {
-    pulseWidth = 1900;
-    pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Cannon down: " + String(pulseWidth) + " µs");
-  }
-  else if (operation == "cannonShot") {
-    pulseWidth = 2000;
-    pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Cannon shot: " + String(pulseWidth) + " µs");
-  }
-  else if (operation == "machineGunShot") {
-    pulseWidth = 1000;
-    pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Machine gun shot: " + String(pulseWidth) + " µs");
-  }
-  else if (operation == "cannonOnOff") {
-    pulseWidth = 1000;
-    pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Cannon on/off: " + String(pulseWidth) + " µs");
-  }
-  else {
-    server.send(400, "text/plain", "Invalid operation");
-  }
-});
+    if (operation == "moveForward") {
+      pulseWidth = 1900;
+      pwm.writeMicroseconds(THROTTLE_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Moving forward: " + String(pulseWidth) + " µs");
+    }
+    else if (operation == "moveBack") {
+      pulseWidth = 1100;
+      pwm.writeMicroseconds(THROTTLE_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Moving backward: " + String(pulseWidth) + " µs");
+    }
+    else if (operation == "turnLeft") {
+      pulseWidth = 1100;
+      pwm.writeMicroseconds(ROTATION_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Turning left: " + String(pulseWidth) + " µs");
+    }
+    else if (operation == "turnRight") {
+      pulseWidth = 1900;
+      pwm.writeMicroseconds(ROTATION_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Turning right: " + String(pulseWidth) + " µs");
+    }
+    else if (operation == "turretLeft") {
+      pulseWidth = 1100;
+      pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Turret to the left: " + String(pulseWidth) + " µs");
+    }
+    else if (operation == "turretRight") {
+      pulseWidth = 1900;
+      pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Turret to the right: " + String(pulseWidth) + " µs");
+    }
+    else if (operation == "turretOnOff") {
+      pulseWidth = 1000;  
+      pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Turret on/off: " + String(pulseWidth) + " µs");
+    }
+    else if (operation == "cannonUp") {
+      pulseWidth = 1100;  
+      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Cannon up: " + String(pulseWidth) + " µs");
+    }
+    else if (operation == "cannonDown") {
+      pulseWidth = 1900;
+      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Cannon down: " + String(pulseWidth) + " µs");
+    }
+    else if (operation == "cannonShot") {
+      pulseWidth = 2000;
+      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Cannon shot: " + String(pulseWidth) + " µs");
+    }
+    else if (operation == "machineGunShot") {
+      pulseWidth = 1000;
+      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Machine gun shot: " + String(pulseWidth) + " µs");
+    }
+    else if (operation == "cannonOnOff") {
+      pulseWidth = 1000;
+      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Cannon on/off: " + String(pulseWidth) + " µs");
+    }
+    else {
+      server.send(400, "text/plain", "Invalid operation");
+    }
+  });
 
   server.begin();
   Serial.println("Web server started!");
