@@ -100,12 +100,36 @@ void handleDriver() {
   }
 
   int code = jsonDoc["code"] | -1;
-  if (code == 101 || code == 102 || code == 103 || code == 104) {
-    int pulseWidth = (code == 101) ? 1900 : (code == 102) ? 1100 : (code == 103) ? 1100 : 1900;
-    pwm.writeMicroseconds((code <= 102) ? THROTTLE_CHANNEL : ROTATION_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Driver action executed: " + codeToOperation[code]);
-  } else {
-    server.send(400, "text/plain", "Invalid operation for Driver");
+  int pulseWidth = DEFAULT_PULSE;
+
+  switch (code) {
+    case 101: // moveForward 1600-1900 od lekko do pelna wixa
+      pulseWidth = 1900;
+      pwm.writeMicroseconds(THROTTLE_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Moving forward: " + String(pulseWidth) + " µs");
+      break;
+          
+    case 102: // moveBack 1400-1100 wolno do szybko
+      pulseWidth = 1100;
+      pwm.writeMicroseconds(THROTTLE_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Moving backward: " + String(pulseWidth) + " µs");
+      break;
+
+    case 103: // turnLeft 1350-900 
+      pulseWidth = 1100;
+      pwm.writeMicroseconds(ROTATION_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Turning left: " + String(pulseWidth) + " µs");
+      break;
+
+    case 104: // turnRight 1600-2000
+      pulseWidth = 1900;
+      pwm.writeMicroseconds(ROTATION_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Turning right: " + String(pulseWidth) + " µs");
+      break;
+
+    default:
+      server.send(400, "text/plain", "Invalid operation code for Driver");
+      break;
   }
 }
 
@@ -127,12 +151,30 @@ void handleCommander() {
   }
 
   int code = jsonDoc["code"] | -1;
-  if (code == 105 || code == 106 || code == 107) {
-    int pulseWidth = (code == 105) ? 1100 : (code == 106) ? 2000 : 1000;
-    pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Commander action executed: " + codeToOperation[code]);
-  } else {
-    server.send(400, "text/plain", "Invalid operation for Commander");
+  int pulseWidth = DEFAULT_PULSE;
+
+  switch (code) {
+    case 105: // turretLeft 1300-1100 od lekko, do wixa w lewo 
+      pulseWidth = 1100;
+      pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Turret to the left: " + String(pulseWidth) + " µs");
+      break;
+
+    case 106: // turretRight 1600-2000 wolno do szybko w wiezy 
+      pulseWidth = 2000; 
+      pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Turret to the right: " + String(pulseWidth) + " µs");
+      break;
+
+    case 107: // turretOnOff
+      pulseWidth = 1000;  
+      pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Turret on/off: " + String(pulseWidth) + " µs");
+      break;
+
+    default:
+      server.send(400, "text/plain", "Invalid operation code for Commander");
+      break;
   }
 }
 
@@ -154,13 +196,46 @@ void handleGunner() {
   }
 
   int code = jsonDoc["code"] | -1;
-  if (code == 108 || code == 109 || code == 110 || code == 111 || code == 112) {
-    int pulseWidth = (code == 108) ? 1100 : (code == 109) ? 1900 : (code == 110) ? 2100 : (code == 111) ? 900 : 1000;
-    pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-    server.send(200, "text/plain", "Gunner action executed: " + codeToOperation[code]);
-    pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
-  } else {
-    server.send(400, "text/plain", "Invalid operation for Gunner");
+  int pulseWidth = DEFAULT_PULSE;
+
+  switch (code) {
+    case 108: // cannonUp
+      pulseWidth = 1100;  
+      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Cannon up: " + String(pulseWidth) + " µs");
+      break;
+
+    case 109: // cannonDown
+      pulseWidth = 1900;
+      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Cannon down: " + String(pulseWidth) + " µs");
+      break;
+
+    case 110: // cannonShot
+      pulseWidth = 2100;
+      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Cannon shot: " + String(pulseWidth) + " µs");
+      delay(500);
+      pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
+      break;
+
+    case 111: // machineGunShot
+      pulseWidth = 900;
+      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Machine gun shot: " + String(pulseWidth) + " µs");
+      delay(500);
+      pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
+      break;
+
+    case 112: // cannonOnOff
+      pulseWidth = 1000;
+      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+      server.send(200, "text/plain", "Cannon on/off: " + String(pulseWidth) + " µs");
+      break;
+
+    default:
+      server.send(400, "text/plain", "Invalid operation code for Gunner");
+      break;
   }
 }
 
