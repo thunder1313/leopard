@@ -1,9 +1,10 @@
-#include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
+#include <ArduinoJson.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
-#include <ArduinoJson.h>
+#include <Wire.h>
+
 #include <map>
 
 // Initialize the servo driver
@@ -24,287 +25,300 @@ const char* password = "superczolg";
 ESP8266WebServer server(80);
 
 void addCORSHeaders() {
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.sendHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-  server.sendHeader("Access-Control-Allow-Headers", "Content-Type, X-Requested-With");
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.sendHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+    server.sendHeader("Access-Control-Allow-Headers", "Content-Type, X-Requested-With");
 }
 
 void handleCORSOptions() {
-  addCORSHeaders();
-  server.send(204);  // No Content
+    addCORSHeaders();
+    server.send(204);  // No Content
 }
 
 void reset() {
-  pwm.writeMicroseconds(THROTTLE_CHANNEL, DEFAULT_PULSE);
-  pwm.writeMicroseconds(ROTATION_CHANNEL, DEFAULT_PULSE);
-  pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
-  pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
-  Serial.println("Reset all signals");
+    pwm.writeMicroseconds(THROTTLE_CHANNEL, DEFAULT_PULSE);
+    pwm.writeMicroseconds(ROTATION_CHANNEL, DEFAULT_PULSE);
+    pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
+    pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
+    Serial.println("Reset all signals");
 }
 
 void killAllSignals() {
-  addCORSHeaders();
-  reset();
-  server.send(200, "text/plain", "All signals reset to default pulse width");
+    addCORSHeaders();
+    reset();
+    server.send(200, "text/plain", "All signals reset to default pulse width");
 }
 
 std::map<int, String> codeToOperation = {
-    {101, "moveForward"}, 
-    {102, "moveBack"}, 
-    {103, "turnLeft"}, 
+    {101, "moveForward"},
+    {102, "moveBack"},
+    {103, "turnLeft"},
     {104, "turnRight"},
-    {105, "turretLeft"},  
-    {106, "turretRight"}, 
-    {107, "turretOnOff"}, 
+    {105, "turretLeft"},
+    {106, "turretRight"},
+    {107, "turretOnOff"},
     {108, "cannonUp"},
-    {109, "cannonDown"},  
-    {110, "cannonShot"}, 
-    {111, "machineGunShot"}, 
-    {112, "cannonOnOff"}
-};
+    {109, "cannonDown"},
+    {110, "cannonShot"},
+    {111, "machineGunShot"},
+    {112, "cannonOnOff"}};
 
 void cancelDriver() {
-  addCORSHeaders();
-  pwm.writeMicroseconds(THROTTLE_CHANNEL, DEFAULT_PULSE);
-  pwm.writeMicroseconds(ROTATION_CHANNEL, DEFAULT_PULSE);
-  server.send(200, "text/plain", "Driver actions canceled");
+    addCORSHeaders();
+    pwm.writeMicroseconds(THROTTLE_CHANNEL, DEFAULT_PULSE);
+    pwm.writeMicroseconds(ROTATION_CHANNEL, DEFAULT_PULSE);
+    server.send(200, "text/plain", "Driver actions canceled");
 }
 
 void cancelCommander() {
-  addCORSHeaders();
-  pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
-  server.send(200, "text/plain", "Commander actions canceled");
+    addCORSHeaders();
+    pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
+    server.send(200, "text/plain", "Commander actions canceled");
 }
 
 void cancelGunner() {
-  addCORSHeaders();
-  pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
-  server.send(200, "text/plain", "Gunner actions canceled");
+    addCORSHeaders();
+    pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
+    server.send(200, "text/plain", "Gunner actions canceled");
+}
+
+float mapThrottle(float value1, float value2, int throttle) {
+    if (throttle < 10) throttle = 10;
+    if (throttle > 100) throttle = 100;
+
+    float percentage = throttle / 100.0f;
+
+    float minVal = std::min(value1, value2);
+    float maxVal = std::max(value1, value2);
+
+    return minVal + (maxVal - minVal) * percentage;
 }
 
 void handleDriver() {
-  addCORSHeaders();
+    addCORSHeaders();
 
-  if (!server.hasArg("plain")) {
-    server.send(400, "text/plain", "Bad Request: Missing payload");
-    return;
-  }
+    if (!server.hasArg("plain")) {
+        server.send(400, "text/plain", "Bad Request: Missing payload");
+        return;
+    }
 
-  String postData = server.arg("plain");
-  StaticJsonDocument<200> jsonDoc;
-  DeserializationError error = deserializeJson(jsonDoc, postData);
+    String postData = server.arg("plain");
+    StaticJsonDocument<200> jsonDoc;
+    DeserializationError error = deserializeJson(jsonDoc, postData);
 
-  if (error) {
-    server.send(400, "text/plain", "Bad Request: Invalid JSON format");
-    return;
-  }
+    if (error) {
+        server.send(400, "text/plain", "Bad Request: Invalid JSON format");
+        return;
+    }
 
-  int code = jsonDoc["code"] | -1;
-  int pulseWidth = DEFAULT_PULSE;
+    int code = jsonDoc["code"] | -1;
+    int throttle = jsonDoc["throttle"] | 100;
+    int pulseWidth = DEFAULT_PULSE;
 
-  switch (code) {
-    case 101: // moveForward 1600-1900 od lekko do pelna wixa
-      pulseWidth = 1900;
-      pwm.writeMicroseconds(THROTTLE_CHANNEL, pulseWidth);
-      server.send(200, "text/plain", "Moving forward: " + String(pulseWidth) + " µs");
-      break;
-          
-    case 102: // moveBack 1400-1100 wolno do szybko
-      pulseWidth = 1100;
-      pwm.writeMicroseconds(THROTTLE_CHANNEL, pulseWidth);
-      server.send(200, "text/plain", "Moving backward: " + String(pulseWidth) + " µs");
-      break;
+    switch (code) {
+        case 101:  // moveForward 1600-1900 od lekko do pelna wixa
+            pulseWidth = mapThrottle(1600, 1900, throttle);
+            pwm.writeMicroseconds(THROTTLE_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Moving forward: " + String(pulseWidth) + " µs");
+            break;
 
-    case 103: // turnLeft 1350-900 
-      pulseWidth = 1100;
-      pwm.writeMicroseconds(ROTATION_CHANNEL, pulseWidth);
-      server.send(200, "text/plain", "Turning left: " + String(pulseWidth) + " µs");
-      break;
+        case 102:  // moveBack 1400-1100 wolno do szybko
+            pulseWidth = mapThrottle(1400, 1100, throttle);
+            pwm.writeMicroseconds(THROTTLE_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Moving backward: " + String(pulseWidth) + " µs");
+            break;
 
-    case 104: // turnRight 1600-2000
-      pulseWidth = 1900;
-      pwm.writeMicroseconds(ROTATION_CHANNEL, pulseWidth);
-      server.send(200, "text/plain", "Turning right: " + String(pulseWidth) + " µs");
-      break;
+        case 103:  // turnLeft 1350-900
+            pulseWidth = mapThrottle(1350, 900, throttle);
+            pwm.writeMicroseconds(ROTATION_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Turning left: " + String(pulseWidth) + " µs");
+            break;
 
-    default:
-      server.send(400, "text/plain", "Invalid operation code for Driver");
-      break;
-  }
+        case 104:  // turnRight 1600-2000
+            pulseWidth = mapThrottle(1600, 2000, throttle);
+            pwm.writeMicroseconds(ROTATION_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Turning right: " + String(pulseWidth) + " µs");
+            break;
+
+        default:
+            server.send(400, "text/plain", "Invalid operation code for Driver");
+            break;
+    }
 }
 
 void handleCommander() {
-  addCORSHeaders();
+    addCORSHeaders();
 
-  if (!server.hasArg("plain")) {
-    server.send(400, "text/plain", "Bad Request: Missing payload");
-    return;
-  }
+    if (!server.hasArg("plain")) {
+        server.send(400, "text/plain", "Bad Request: Missing payload");
+        return;
+    }
 
-  String postData = server.arg("plain");
-  StaticJsonDocument<200> jsonDoc;
-  DeserializationError error = deserializeJson(jsonDoc, postData);
+    String postData = server.arg("plain");
+    StaticJsonDocument<200> jsonDoc;
+    DeserializationError error = deserializeJson(jsonDoc, postData);
 
-  if (error) {
-    server.send(400, "text/plain", "Bad Request: Invalid JSON format");
-    return;
-  }
+    if (error) {
+        server.send(400, "text/plain", "Bad Request: Invalid JSON format");
+        return;
+    }
 
-  int code = jsonDoc["code"] | -1;
-  int pulseWidth = DEFAULT_PULSE;
+    int code = jsonDoc["code"] | -1;
+    int throttle = jsonDoc["throttle"] | 100;
+    int pulseWidth = DEFAULT_PULSE;
 
-  switch (code) {
-    case 105: // turretLeft 1300-1100 od lekko, do wixa w lewo 
-      pulseWidth = 1100;
-      pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
-      server.send(200, "text/plain", "Turret to the left: " + String(pulseWidth) + " µs");
-      break;
+    switch (code) {
+        case 105:  // turretLeft 1300-1100 od lekko, do wixa w lewo
+            pulseWidth = mapThrottle(1300, 1100, throttle);
+            pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Turret to the left: " + String(pulseWidth) + " µs");
+            break;
 
-    case 106: // turretRight 1600-2000 wolno do szybko w wiezy 
-      pulseWidth = 2000; 
-      pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
-      server.send(200, "text/plain", "Turret to the right: " + String(pulseWidth) + " µs");
-      break;
+        case 106:  // turretRight 1600-2000 wolno do szybko w wiezy
+            pulseWidth = mapThrottle(1600, 2000, throttle);
+            pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Turret to the right: " + String(pulseWidth) + " µs");
+            break;
 
-    case 107: // turretOnOff
-      pulseWidth = 1000;  
-      pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
-      server.send(200, "text/plain", "Turret on/off: " + String(pulseWidth) + " µs");
-      break;
+        case 107:  // turretOnOff
+            pulseWidth = 1000;
+            pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Turret on/off: " + String(pulseWidth) + " µs");
+            break;
 
-    default:
-      server.send(400, "text/plain", "Invalid operation code for Commander");
-      break;
-  }
+        default:
+            server.send(400, "text/plain", "Invalid operation code for Commander");
+            break;
+    }
 }
 
 void handleGunner() {
-  addCORSHeaders();
+    addCORSHeaders();
 
-  if (!server.hasArg("plain")) {
-    server.send(400, "text/plain", "Bad Request: Missing payload");
-    return;
-  }
+    if (!server.hasArg("plain")) {
+        server.send(400, "text/plain", "Bad Request: Missing payload");
+        return;
+    }
 
-  String postData = server.arg("plain");
-  StaticJsonDocument<200> jsonDoc;
-  DeserializationError error = deserializeJson(jsonDoc, postData);
+    String postData = server.arg("plain");
+    StaticJsonDocument<200> jsonDoc;
+    DeserializationError error = deserializeJson(jsonDoc, postData);
 
-  if (error) {
-    server.send(400, "text/plain", "Bad Request: Invalid JSON format");
-    return;
-  }
+    if (error) {
+        server.send(400, "text/plain", "Bad Request: Invalid JSON format");
+        return;
+    }
 
-  int code = jsonDoc["code"] | -1;
-  int pulseWidth = DEFAULT_PULSE;
+    int code = jsonDoc["code"] | -1;
+    int pulseWidth = DEFAULT_PULSE;
 
-  switch (code) {
-    case 108: // cannonUp
-      pulseWidth = 1100;  
-      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-      server.send(200, "text/plain", "Cannon up: " + String(pulseWidth) + " µs");
-      break;
+    switch (code) {
+        case 108:  // cannonUp
+            pulseWidth = 1100;
+            pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Cannon up: " + String(pulseWidth) + " µs");
+            break;
 
-    case 109: // cannonDown
-      pulseWidth = 1900;
-      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-      server.send(200, "text/plain", "Cannon down: " + String(pulseWidth) + " µs");
-      break;
+        case 109:  // cannonDown
+            pulseWidth = 1900;
+            pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Cannon down: " + String(pulseWidth) + " µs");
+            break;
 
-    case 110: // cannonShot
-      pulseWidth = 2100;
-      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-      server.send(200, "text/plain", "Cannon shot: " + String(pulseWidth) + " µs");
-      delay(500);
-      pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
-      break;
+        case 110:  // cannonShot
+            pulseWidth = 2100;
+            pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Cannon shot: " + String(pulseWidth) + " µs");
+            delay(500);
+            pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
+            break;
 
-    case 111: // machineGunShot
-      pulseWidth = 900;
-      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-      server.send(200, "text/plain", "Machine gun shot: " + String(pulseWidth) + " µs");
-      delay(500);
-      pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
-      break;
+        case 111:  // machineGunShot
+            pulseWidth = 900;
+            pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Machine gun shot: " + String(pulseWidth) + " µs");
+            delay(500);
+            pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
+            break;
 
-    case 112: // cannonOnOff
-      pulseWidth = 1000;
-      pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-      server.send(200, "text/plain", "Cannon on/off: " + String(pulseWidth) + " µs");
-      break;
+        case 112:  // cannonOnOff
+            pulseWidth = 1000;
+            pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Cannon on/off: " + String(pulseWidth) + " µs");
+            break;
 
-    default:
-      server.send(400, "text/plain", "Invalid operation code for Gunner");
-      break;
-  }
+        default:
+            server.send(400, "text/plain", "Invalid operation code for Gunner");
+            break;
+    }
 }
 
 void handleLoader() {
-  addCORSHeaders();
+    addCORSHeaders();
 
-  if (!server.hasArg("plain")) {
-    server.send(400, "text/plain", "Bad Request: Missing payload");
-    return;
-  }
+    if (!server.hasArg("plain")) {
+        server.send(400, "text/plain", "Bad Request: Missing payload");
+        return;
+    }
 
-  String postData = server.arg("plain");
-  StaticJsonDocument<200> jsonDoc;
-  DeserializationError error = deserializeJson(jsonDoc, postData);
+    String postData = server.arg("plain");
+    StaticJsonDocument<200> jsonDoc;
+    DeserializationError error = deserializeJson(jsonDoc, postData);
 
-  if (error) {
-    server.send(400, "text/plain", "Bad Request: Invalid JSON format");
-    return;
-  }
+    if (error) {
+        server.send(400, "text/plain", "Bad Request: Invalid JSON format");
+        return;
+    }
 
-  int code = jsonDoc["code"] | -1;
-  //TODO
+    int code = jsonDoc["code"] | -1;
+    // TODO
 }
 
 void handlePing() {
-  addCORSHeaders();
-  digitalWrite(LED_PIN, LOW);
-  server.send(200, "text/plain", "pong");
-  delay(500);
-  digitalWrite(LED_PIN, HIGH);
+    addCORSHeaders();
+    digitalWrite(LED_PIN, LOW);
+    server.send(200, "text/plain", "pong");
+    delay(500);
+    digitalWrite(LED_PIN, HIGH);
 }
 
 void setup() {
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, HIGH);
 
-  Serial.begin(115200);
-  Wire.begin(D2, D1);
+    Serial.begin(115200);
+    Wire.begin(D2, D1);
 
-  pwm.begin();
-  pwm.setPWMFreq(50);
-  reset();
+    pwm.begin();
+    pwm.setPWMFreq(50);
+    reset();
 
-  WiFi.softAP(ssid, password);
-  Serial.println("Web server started at: http://" + WiFi.softAPIP().toString());
+    WiFi.softAP(ssid, password);
+    Serial.println("Web server started at: http://" + WiFi.softAPIP().toString());
 
-  server.on("/driver", HTTP_OPTIONS, handleCORSOptions);
-  server.on("/driver", HTTP_POST, handleDriver);
+    server.on("/driver", HTTP_OPTIONS, handleCORSOptions);
+    server.on("/driver", HTTP_POST, handleDriver);
 
-  server.on("/commander", HTTP_OPTIONS, handleCORSOptions);
-  server.on("/commander", HTTP_POST, handleCommander);
+    server.on("/commander", HTTP_OPTIONS, handleCORSOptions);
+    server.on("/commander", HTTP_POST, handleCommander);
 
-  server.on("/gunner", HTTP_OPTIONS, handleCORSOptions);
-  server.on("/gunner", HTTP_POST, handleGunner);
+    server.on("/gunner", HTTP_OPTIONS, handleCORSOptions);
+    server.on("/gunner", HTTP_POST, handleGunner);
 
-  server.on("/loader", HTTP_OPTIONS, handleCORSOptions);
-  server.on("/loader", HTTP_POST, handleLoader);
+    server.on("/loader", HTTP_OPTIONS, handleCORSOptions);
+    server.on("/loader", HTTP_POST, handleLoader);
 
-  server.on("/driver/cancel", HTTP_POST, cancelDriver);
-  server.on("/commander/cancel", HTTP_POST, cancelCommander);
-  server.on("/gunner/cancel", HTTP_POST, cancelGunner);
+    server.on("/driver/cancel", HTTP_POST, cancelDriver);
+    server.on("/commander/cancel", HTTP_POST, cancelCommander);
+    server.on("/gunner/cancel", HTTP_POST, cancelGunner);
 
-  server.on("/kill", HTTP_POST, killAllSignals);
+    server.on("/kill", HTTP_POST, killAllSignals);
 
-  server.on("/ping", HTTP_GET, handlePing);
+    server.on("/ping", HTTP_GET, handlePing);
 
-  server.begin();
+    server.begin();
 }
 
 void loop() {
-  server.handleClient();
+    server.handleClient();
 }
