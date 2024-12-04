@@ -129,7 +129,7 @@ void handleDriver() {
             break;
 
         case 103:  // turnLeft 1350-900
-            pulseWidth = mapThrottle(1350, 900, throttle);
+            pulseWidth = mapThrottle(900, 1350, throttle);
             pwm.writeMicroseconds(ROTATION_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Turning left: " + String(pulseWidth) + " µs");
             break;
@@ -175,7 +175,7 @@ void handleCommander() {
             break;
 
         case 106:  // turretRight 1600-2000 wolno do szybko w wiezy
-            pulseWidth = mapThrottle(1600, 2000, throttle);
+            pulseWidth = mapThrottle(1650, 2000, throttle);
             pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Turret to the right: " + String(pulseWidth) + " µs");
             break;
@@ -308,8 +308,11 @@ void setup() {
     server.on("/loader", HTTP_OPTIONS, handleCORSOptions);
     server.on("/loader", HTTP_POST, handleLoader);
 
+    server.on("/driver/cancel", HTTP_OPTIONS, cancelDriver);
     server.on("/driver/cancel", HTTP_POST, cancelDriver);
+    server.on("/commander/cancel", HTTP_OPTIONS, cancelCommander);
     server.on("/commander/cancel", HTTP_POST, cancelCommander);
+    server.on("/gunner/cancel", HTTP_OPTIONS, cancelGunner);
     server.on("/gunner/cancel", HTTP_POST, cancelGunner);
 
     server.on("/kill", HTTP_POST, killAllSignals);
