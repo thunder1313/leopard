@@ -56,30 +56,31 @@ std::map<int, String> codeToOperation = {
     {104, "turnRight"},
     {105, "turretLeft"},
     {106, "turretRight"},
-    {107, "turretOnOff"},
     {108, "cannonUp"},
     {109, "cannonDown"},
     {110, "cannonShot"},
     {111, "machineGunShot"},
-    {112, "cannonOnOff"}};
+    {112, "engineOnOff"}};
 
 void cancelDriver() {
     addCORSHeaders();
     pwm.writeMicroseconds(THROTTLE_CHANNEL, DEFAULT_PULSE);
     pwm.writeMicroseconds(ROTATION_CHANNEL, DEFAULT_PULSE);
-    server.send(200, "text/plain", "Driver actions canceled");
+    pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
+    pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
+    server.send(200, "text/plain", "All driver actions canceled");
 }
 
 void cancelCommander() {
     addCORSHeaders();
     pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
-    server.send(200, "text/plain", "Commander actions canceled");
+    server.send(200, "text/plain", "All commander actions canceled");
 }
 
 void cancelGunner() {
     addCORSHeaders();
     pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
-    server.send(200, "text/plain", "Gunner actions canceled");
+    server.send(200, "text/plain", "All gunner actions canceled");
 }
 
 float mapThrottle(float value1, float value2, int throttle) {
@@ -140,6 +141,12 @@ void handleDriver() {
             server.send(200, "text/plain", "Turning right: " + String(pulseWidth) + " µs");
             break;
 
+        case 112: // engine on/off
+            pulseWidth = 1000;
+            pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
+            pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Turning engine on/off: " + String(pulseWidth) + " µs");
+
         default:
             server.send(400, "text/plain", "Invalid operation code for Driver");
             break;
@@ -178,12 +185,6 @@ void handleCommander() {
             pulseWidth = mapThrottle(1650, 2000, throttle);
             pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Turret to the right: " + String(pulseWidth) + " µs");
-            break;
-
-        case 107:  // turretOnOff
-            pulseWidth = 1000;
-            pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
-            server.send(200, "text/plain", "Turret on/off: " + String(pulseWidth) + " µs");
             break;
 
         default:
@@ -239,12 +240,6 @@ void handleGunner() {
             server.send(200, "text/plain", "Machine gun shot: " + String(pulseWidth) + " µs");
             delay(500);
             pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
-            break;
-
-        case 112:  // cannonOnOff
-            pulseWidth = 1000;
-            pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-            server.send(200, "text/plain", "Cannon on/off: " + String(pulseWidth) + " µs");
             break;
 
         default:
