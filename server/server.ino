@@ -4,9 +4,8 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <Wire.h>
-
 #include <map>
-
+#include <WebSocketsServer.h>
 // Initialize the servo driver
 Adafruit_PWMServoDriver pwm;
 
@@ -23,6 +22,58 @@ Adafruit_PWMServoDriver pwm;
 const char* ssid = "Leopard_2A6";
 const char* password = "superczolg";
 ESP8266WebServer server(80);
+WebSocketsServer webSocket(81);
+
+bool isGunLoaded = false;
+bool isCanonLoaded = false;
+int connectedClients = 0;
+
+void broadcast(String message) {
+  for (uint8_t i = 0; i < webSocket.connectedClients(); i++) {
+    if (webSocket.status(i) == WS_CONNECTED) {
+      webSocket.sendTXT(i, message);
+    }
+  }
+}
+
+void handleWebSocketMessage(uint8_t num, uint8_t *payload, size_t length) {
+  String message = String((char *)payload);
+  Serial.println("Received: " + message);
+
+  DynamicJsonDocument doc(256);
+  deserializeJson(doc, message);
+
+  String type = doc["type"];
+
+  if (type == "getIsCanonLoaded") {
+    webSocket.sendTXT(num, "{\"type\": \"isCanonLoaded\", \"isCanonLoaded\": " + String(isCanonLoaded) + "}");
+  } else if (type == "getIsGunLoaded") {
+    webSocket.sendTXT(num, "{\"type\": \"isGunLoaded\", \"isGunLoaded\": " + String(isGunLoaded) + "}");
+  } else if (type == "setIsCanonLoaded") {
+    isCanonLoaded = !isCanonLoaded;
+    broadcast("{\"type\": \"isCanonLoaded\", \"isCanonLoaded\": " + String(isCanonLoaded) + "}");
+  } else if (type == "setIsGunLoaded") {
+    isGunLoaded = !isGunLoaded;
+    broadcast("{\"type\": \"isGunLoaded\", \"isGunLoaded\": " + String(isGunLoaded) + "}");
+  }
+}
+
+void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
+  switch (type) {
+    case WStype_CONNECTED:
+      connectedClients++;
+      Serial.printf("Client [%u] connected. Total clients: %d\n", num, connectedClients);
+      break;
+    case WStype_DISCONNECTED:
+      connectedClients--;
+      Serial.printf("Client [%u] disconnected. Total clients: %d\n", num, connectedClients);
+      break;
+    case WStype_TEXT:
+      handleWebSocketMessage(num, payload, length);
+      break;
+  }
+}
+
 
 void addCORSHeaders() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -315,8 +366,13 @@ void setup() {
     server.on("/ping", HTTP_GET, handlePing);
 
     server.begin();
+
+    webSocket.begin();
+    webSocket.onEvent(onWebSocketEvent);
+    Serial.println("WebSocket server started.");
 }
 
 void loop() {
     server.handleClient();
+    webSocket.loop();
 }
