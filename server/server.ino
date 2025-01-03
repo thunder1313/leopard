@@ -1,6 +1,7 @@
 #include <Adafruit_PWMServoDriver.h>
 #include <ArduinoJson.h>
 #include <ESP8266WebServer.h>
+#include <WebSocketsServer.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <Wire.h>
@@ -23,6 +24,74 @@ Adafruit_PWMServoDriver pwm;
 const char* ssid = "Leopard_2A6";
 const char* password = "superczolg";
 ESP8266WebServer server(80);
+WebSocketsServer webSocket(81);
+
+bool isGunLoaded = false;
+bool isCanonLoaded = false;
+int connectedClients = 0;
+
+void handleRoot() {
+  server.send(200, "text/plain", "Successful response.");
+}
+
+void broadcast(String message) {
+  for (uint8_t i = 0; i < webSocket.connectedClients(); i++) {
+    webSocket.sendTXT(i, message);
+  }
+}
+
+void handleWebSocketMessage(uint8_t num, uint8_t *payload, size_t length) {
+  String message = String((char *)payload);
+  Serial.println("Received: " + message);
+
+  StaticJsonDocument<256> doc; // Correct usage for ArduinoJson
+  DeserializationError error = deserializeJson(doc, message);
+
+  if (error) {
+    Serial.println("Failed to parse JSON");
+    return;
+  }
+
+  String type = doc["type"];
+
+  if (type == "getIsCanonLoaded") {
+    String response = "{\"type\": \"isCanonLoaded\", \"isCanonLoaded\": " + String(isCanonLoaded) + "}";
+    webSocket.sendTXT(num, response);
+  } else if (type == "getIsGunLoaded") {
+    String response = "{\"type\": \"isGunLoaded\", \"isGunLoaded\": " + String(isGunLoaded) + "}";
+    webSocket.sendTXT(num, response);
+  } else if (type == "setIsCanonLoaded") {
+    isCanonLoaded = !isCanonLoaded;
+    broadcast("{\"type\": \"isCanonLoaded\", \"isCanonLoaded\": " + String(isCanonLoaded) + "}");
+  } else if (type == "setIsGunLoaded") {
+    isGunLoaded = !isGunLoaded;
+    broadcast("{\"type\": \"isGunLoaded\", \"isGunLoaded\": " + String(isGunLoaded) + "}");
+  }
+}
+
+void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
+  switch (type) {
+    case WStype_CONNECTED: {
+      IPAddress clientIP = webSocket.remoteIP(num);
+      Serial.printf("Client [%u] connected.\n", num);
+
+      connectedClients = webSocket.connectedClients();
+      Serial.printf("Total clients: %d\n", connectedClients);
+      break;
+    }
+    case WStype_DISCONNECTED: {
+      connectedClients = webSocket.connectedClients();
+      Serial.printf("Client [%u] disconnected.\n", num);
+      break;
+    }
+    case WStype_TEXT: {
+      handleWebSocketMessage(num, payload, length);
+      break;
+    }
+    default:
+      break;
+  }
+}
 
 void addCORSHeaders() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -288,8 +357,13 @@ void setup() {
     pwm.setPWMFreq(50);
     reset();
 
+    // WiFi setup
     WiFi.softAP(ssid, password);
-    Serial.println("Web server started at: http://" + WiFi.softAPIP().toString());
+    Serial.println("Web server started at:");
+    Serial.println(WiFi.softAPIP());
+
+    // HTTP server setup
+    server.on("/", handleRoot);
 
     server.on("/driver", HTTP_OPTIONS, handleCORSOptions);
     server.on("/driver", HTTP_POST, handleDriver);
@@ -315,8 +389,14 @@ void setup() {
     server.on("/ping", HTTP_GET, handlePing);
 
     server.begin();
+
+    // WebSocket server setup
+    webSocket.begin();
+    webSocket.onEvent(onWebSocketEvent);
+    Serial.println("WebSocket server started.");
 }
 
 void loop() {
     server.handleClient();
+    webSocket.loop();
 }
