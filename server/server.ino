@@ -4,6 +4,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <Wire.h>
+#include <ArduinoJson.h>  
 
 #include <map>
 
@@ -24,6 +25,8 @@ const char* ssid = "Leopard_2A6";
 const char* password = "superczolg";
 ESP8266WebServer server(80);
 
+bool isGunLoaded = false;
+bool isCanonLoaded = false;
 void addCORSHeaders() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
     server.sendHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
@@ -83,6 +86,33 @@ void cancelGunner() {
     server.send(200, "text/plain", "All gunner actions canceled");
 }
 
+void handleGetIsLoaded(){
+    addCORSHeaders();
+    StaticJsonDocument<248> doc;
+    doc["isCanonLoaded"] = isCanonLoaded;
+    doc["isGunLoaded"] = isGunLoaded;
+    String response;
+    serializeJson(doc, response);  
+    server.send(200, "application/json", response);
+}
+
+void handleSetIsGunLoaded(){
+    isGunLoaded = !isGunLoaded;
+    StaticJsonDocument<248> doc;
+    doc["isGunLoaded"] = isGunLoaded;
+    String response;
+    serializeJson(doc, response);
+    server.send(200, "application/json", response);
+}
+
+void handleSetIsCanonLoaded(){
+    isCanonLoaded = !isCanonLoaded;
+    StaticJsonDocument<248> doc;
+    doc["isCanonLoaded"] = isCanonLoaded;
+    String response;
+    serializeJson(doc, response);
+    server.send(200, "application/json", response);
+}
 float mapThrottle(float value1, float value2, int throttle) {
     if (throttle < 10) throttle = 10;
     if (throttle > 100) throttle = 100;
@@ -309,6 +339,12 @@ void setup() {
     server.on("/commander/cancel", HTTP_POST, cancelCommander);
     server.on("/gunner/cancel", HTTP_OPTIONS, cancelGunner);
     server.on("/gunner/cancel", HTTP_POST, cancelGunner);
+
+
+    server.on("/getIsLoaded", HTTP_GET, handleGetIsLoaded);
+    server.on("/setIsCanonLoaded", HTTP_POST, handleSetIsCanonLoaded);
+    server.on("/setIsGunLoaded", HTTP_POST, handleSetIsGunLoaded);
+
 
     server.on("/kill", HTTP_POST, killAllSignals);
 
