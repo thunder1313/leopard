@@ -97,6 +97,7 @@ void handleGetIsLoaded(){
 }
 
 void handleSetIsGunLoaded(){
+    addCORSHeaders();
     isGunLoaded = !isGunLoaded;
     StaticJsonDocument<248> doc;
     doc["isGunLoaded"] = isGunLoaded;
@@ -106,6 +107,7 @@ void handleSetIsGunLoaded(){
 }
 
 void handleSetIsCanonLoaded(){
+    addCORSHeaders();
     isCanonLoaded = !isCanonLoaded;
     StaticJsonDocument<248> doc;
     doc["isCanonLoaded"] = isCanonLoaded;
