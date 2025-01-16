@@ -5,7 +5,6 @@
 #include <WiFiClient.h>
 #include <Wire.h>
 #include <ArduinoJson.h>  
-
 #include <map>
 
 // Initialize the servo driver
@@ -21,13 +20,13 @@ Adafruit_PWMServoDriver pwm;
 
 #define LED_PIN LED_BUILTIN
 
-const char* ssid = "Leopard";
-const char* password = "superczolg";
+const char* ssid = "Leopard_2A6";       // Replace with your Wi-Fi SSID
+const char* password = "superczolg"; // Replace with your Wi-Fi password
+
 ESP8266WebServer server(80);
 
 bool isGunLoaded = false;
 bool isCanonLoaded = false;
-int connectedClients = 0;
 
 void addCORSHeaders() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -117,6 +116,7 @@ void handleSetIsCanonLoaded(){
     serializeJson(doc, response);
     server.send(200, "application/json", response);
 }
+
 float mapThrottle(float value1, float value2, int throttle) {
     if (throttle < 10) throttle = 10;
     if (throttle > 100) throttle = 100;
@@ -322,8 +322,16 @@ void setup() {
     pwm.setPWMFreq(50);
     reset();
 
-    WiFi.softAP(ssid, password);
-    Serial.println("Web server started at: http://" + WiFi.softAPIP().toString());
+    // Connect to Wi-Fi
+    WiFi.begin(ssid, password);
+    Serial.print("Connecting to Wi-Fi");
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println();
+    Serial.println("Connected to Wi-Fi");
+    Serial.println("IP address: " + WiFi.localIP().toString());
 
     server.on("/driver", HTTP_OPTIONS, handleCORSOptions);
     server.on("/driver", HTTP_POST, handleDriver);
@@ -343,7 +351,6 @@ void setup() {
     server.on("/commander/cancel", HTTP_POST, cancelCommander);
     server.on("/gunner/cancel", HTTP_OPTIONS, cancelGunner);
     server.on("/gunner/cancel", HTTP_POST, cancelGunner);
-
 
     server.on("/getIsLoaded", HTTP_GET, handleGetIsLoaded);
     server.on("/getIsLoaded", HTTP_OPTIONS, handleCORSOptions);
