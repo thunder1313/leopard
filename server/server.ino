@@ -14,6 +14,12 @@ Adafruit_PWMServoDriver pwm;
 #define ROTATION_CHANNEL 1
 #define TURRET_CHANNEL 2
 #define CANNON_CHANNEL 3
+//to na dole do ustawienia/ zmiany zaleznie gdzie podlaczymy 
+#define SENSOR_PIN A0
+//to do przetestowania
+#define SENSOR_THRESHOLD_LOW 200   
+#define SENSOR_THRESHOLD_HIGH 800
+
 
 #define PCA9685_ADDR 0x40  // Default I2C address of PCA9685
 #define DEFAULT_PULSE 1500
@@ -187,6 +193,7 @@ void handleDriver() {
     }
 }
 
+
 void handleCommander() {
     addCORSHeaders();
 
@@ -217,7 +224,6 @@ void handleCommander() {
 
         case 106:  // turretRight 1600-2000 wolno do szybko w wiezy
             pulseWidth = mapThrottle(1650, 2000, throttle);
-            pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Turret to the right: " + String(pulseWidth) + " µs");
             break;
 
@@ -311,6 +317,27 @@ void handlePing() {
     digitalWrite(LED_PIN, HIGH);
 }
 
+void handleCenteringTurret() {
+    int sensorValue;
+    
+    while (true) {
+        sensorValue = analogRead(SENSOR_PIN);
+        
+        if (sensorValue < SENSOR_THRESHOLD_LOW) {
+            pwm.writeMicroseconds(TURRET_CHANNEL, 1900);
+        } else if (sensorValue > SENSOR_THRESHOLD_HIGH) {
+            pwm.writeMicroseconds(TURRET_CHANNEL, 1100);
+        } else {
+            break;  
+        }
+        
+        delay(10);
+    }
+    pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);  
+    server.send(200, "text/plain", "Turret centered");
+
+}
+
 void setup() {
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, HIGH);
@@ -365,7 +392,10 @@ void setup() {
 
     server.on("/ping", HTTP_GET, handlePing);
 
-    server.begin();
+    server.on("/centerTurret", HTTP_OPTIONS, handleCenteringTurret);
+    server.on("/centerTurret", HTTP_POST, handleCenteringTurret);
+
+    server.begin();i
 }
 
 void loop() {    
