@@ -1,0 +1,36 @@
+void httpshot()
+{
+serverData="http://192.168.0.150:5000/api/compound/shot-fired?apiKey=4affce87-77ae-4217-b19d-057090d47119";
+ http_send();
+ 
+}
+void http_tag_in()
+{
+ serverData="http://192.168.0.150:5000/api/compound/tag-reached?apiKey=4affce87-77ae-4217-b19d-057090d47119&tagId=tag-01";
+ http_send();
+
+}
+void http_tag_out()
+{
+ serverData="http://192.168.0.150:5000/api/compound/tag-left?apiKey=4affce87-77ae-4217-b19d-057090d47119&tagId=tag-01";
+ http_send();
+
+} 
+void http_send()
+{
+    //http://192.168.0.104:5000/api/compound/shot-fired?apiKey=4affce87-77ae-4217-b19d-057090d47119
+  
+  http_client.begin(client, serverData);              //Specify request destination
+  http_client.addHeader("Content-Type", "application/x-www-form-urlencoded");    //Specify content-type header
+ 
+  int httpCode = http_client.POST(postData);   //Send the request
+ 
+  String payload = http_client.getString();    //Get the response payload
+  int minutki=payload.toInt();
+  
+  Serial.println(httpCode);   //Print HTTP return code
+  Serial.println(payload);    //Print request response payload
+  Serial.println(minutki);
+  
+  http_client.end();  //Close connection
+}
