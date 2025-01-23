@@ -1,5 +1,14 @@
 #include "esp_camera.h"
 #include <WiFi.h>
+#include <SoftwareSerial.h>
+#include <SeeedRFID.h>
+#include <HTTPClient.h>
+
+#define RFID_RX_PIN 2
+#define RFID_TX_PIN 3
+SoftwareSerial SoftSerial(RFID_RX_PIN, RFID_TX_PIN);
+SeeedRFID RFID(RFID_RX_PIN, RFID_TX_PIN);
+RFIDdata tag;
 
 //
 // WARNING!!! PSRAM IC required for UXGA resolution and high JPEG quality
@@ -24,9 +33,12 @@ const char *password = "superczolg";
 
 void startCameraServer();
 void setupLedFlash(int pin);
+bool tagPresent = false;
+HTTPClient http_client;
 
 void setup() {
   Serial.begin(115200);
+  SoftSerial.begin(9600);  
   Serial.setDebugOutput(true);
   Serial.println();
 
@@ -133,7 +145,52 @@ void setup() {
   Serial.println("' to connect");
 }
 
+void httpshot()
+{
+serverData="http://192.168.0.150:5000/api/compound/shot-fired?apiKey=4affce87-77ae-4217-b19d-057090d47119";
+ http_send();
+}
+
+void http_tag_in()
+{
+ serverData="http://192.168.0.150:5000/api/compound/tag-reached?apiKey=4affce87-77ae-4217-b19d-057090d47119&tagId=tag-01";
+ http_send();
+}
+
+void http_tag_out()
+{
+ serverData="http://192.168.0.150:5000/api/compound/tag-left?apiKey=4affce87-77ae-4217-b19d-057090d47119&tagId=tag-01";
+ http_send();
+
+} 
+void http_send()
+{
+    //http://192.168.0.104:5000/api/compound/shot-fired?apiKey=4affce87-77ae-4217-b19d-057090d47119
+  
+  http_client.begin(client, serverData);              //Specify request destination
+  http_client.addHeader("Content-Type", "application/x-www-form-urlencoded");    //Specify content-type header
+ 
+  int httpCode = http_client.POST(postData);   //Send the request
+ 
+  String payload = http_client.getString();    //Get the response payload
+  int minutki=payload.toInt();
+  
+  Serial.println(httpCode);   //Print HTTP return code
+  Serial.println(payload);    //Print request response payload
+  Serial.println(minutki);
+  
+  http_client.end();  //Close connection
+}
 void loop() {
-  // Do nothing. Everything is done in another task by the web server
-  delay(10000);
+  if (RFID.isAvailable()) {
+    if (!tagPresent) {
+      tag = RFID.data();
+      http_tag_in();
+      tagPresent = true;
+    }
+  } else if (tagPresent){
+      http_tag_out();
+      tagPresent = false;
+  }
+  delay(1000);
 }
