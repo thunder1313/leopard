@@ -31,8 +31,8 @@ const char* password = "superczolg";
 
 ESP8266WebServer server(80);
 
-bool isHELoaded = false; //from isGunLoaded
-bool isAPDSLoaded = false; //from isCannonLoaded
+bool isHELoaded = false; //machine gun -> HE (High Explosive)
+bool isAPDSLoaded = false; //cannon -> APDS 
 
 void addCORSHeaders() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -68,8 +68,8 @@ std::map<int, String> codeToOperation = {
     {106, "turretRight"},
     {108, "cannonUp"},
     {109, "cannonDown"},
-    {110, "cannonAPDSShot"},
-    {111, "cannonHEShot"},
+    {110, "cannonShot"},
+    {111, "machineGunShot"},
     {112, "engineOnOff"}};
 
 void cancelDriver() {
@@ -267,18 +267,18 @@ void handleGunner() {
             server.send(200, "text/plain", "Cannon down: " + String(pulseWidth) + " µs");
             break;
 
-        case 110:  // cannonShot - APDS missile
+        case 110:  // cannonShot
             pulseWidth = 2100;
             pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-            server.send(200, "text/plain", "Cannon shot from APDS missile: " + String(pulseWidth) + " µs");
+            server.send(200, "text/plain", "Cannon shot: " + String(pulseWidth) + " µs");
             delay(500);
             pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
             break;
 
-        case 111:  // cannonShot - HE missile
+        case 111:  // machineGunShot
             pulseWidth = 900;
             pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-            server.send(200, "text/plain", "Cannon shot from HE missile: " + String(pulseWidth) + " µs");
+            server.send(200, "text/plain", "Machine gun shot: " + String(pulseWidth) + " µs");
             delay(500);
             pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
             break;
