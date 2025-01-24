@@ -26,13 +26,13 @@ Adafruit_PWMServoDriver pwm;
 
 #define LED_PIN LED_BUILTIN
 
-const char* ssid = "Leopard_2A6";       // Replace with your Wi-Fi SSID
-const char* password = "superczolg"; // Replace with your Wi-Fi password
+const char* ssid = "Leopard_2A6";    
+const char* password = "superczolg";
 
 ESP8266WebServer server(80);
 
-bool isGunLoaded = false;
-bool isCanonLoaded = false;
+bool isHELoaded = false; //from isGunLoaded
+bool isAPDSLoaded = false; //from isCannonLoaded
 
 void addCORSHeaders() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -42,7 +42,7 @@ void addCORSHeaders() {
 
 void handleCORSOptions() {
     addCORSHeaders();
-    server.send(204);  // No Content
+    server.send(204);
 }
 
 void reset() {
@@ -68,8 +68,8 @@ std::map<int, String> codeToOperation = {
     {106, "turretRight"},
     {108, "cannonUp"},
     {109, "cannonDown"},
-    {110, "cannonShot"},
-    {111, "machineGunShot"},
+    {110, "cannonAPDSShot"},
+    {111, "cannonHEShot"},
     {112, "engineOnOff"}};
 
 void cancelDriver() {
@@ -96,28 +96,28 @@ void cancelGunner() {
 void handleGetIsLoaded(){
     addCORSHeaders();
     StaticJsonDocument<248> doc;
-    doc["isCanonLoaded"] = isCanonLoaded;
-    doc["isGunLoaded"] = isGunLoaded;
+    doc["isAPDSLoaded"] = isAPDSLoaded;
+    doc["isHELoaded"] = isHELoaded;
     String response;
     serializeJson(doc, response);  
     server.send(200, "application/json", response);
 }
 
-void handleSetIsGunLoaded(){
+void handleSetisHELoaded(){
     addCORSHeaders();
-    isGunLoaded = !isGunLoaded;
+    isHELoaded = isHELoaded;
     StaticJsonDocument<248> doc;
-    doc["isGunLoaded"] = isGunLoaded;
+    doc["isHELoaded"] = isHELoaded;
     String response;
     serializeJson(doc, response);
     server.send(200, "application/json", response);
 }
 
-void handleSetIsCanonLoaded(){
+void handleSetisAPDSLoaded(){
     addCORSHeaders();
-    isCanonLoaded = !isCanonLoaded;
+    isAPDSLoaded = !isAPDSLoaded;
     StaticJsonDocument<248> doc;
-    doc["isCanonLoaded"] = isCanonLoaded;
+    doc["isAPDSLoaded"] = isAPDSLoaded;
     String response;
     serializeJson(doc, response);
     server.send(200, "application/json", response);
@@ -216,14 +216,15 @@ void handleCommander() {
     int pulseWidth = DEFAULT_PULSE;
 
     switch (code) {
-        case 105:  // turretLeft 1300-1100 od lekko, do wixa w lewo
+        case 105:
             pulseWidth = mapThrottle(1300, 1100, throttle);
             pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Turret to the left: " + String(pulseWidth) + " µs");
             break;
 
-        case 106:  // turretRight 1600-2000 wolno do szybko w wiezy
+        case 106:
             pulseWidth = mapThrottle(1650, 2000, throttle);
+            pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Turret to the right: " + String(pulseWidth) + " µs");
             break;
 
@@ -266,18 +267,18 @@ void handleGunner() {
             server.send(200, "text/plain", "Cannon down: " + String(pulseWidth) + " µs");
             break;
 
-        case 110:  // cannonShot
+        case 110:  // cannonShot - APDS missile
             pulseWidth = 2100;
             pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-            server.send(200, "text/plain", "Cannon shot: " + String(pulseWidth) + " µs");
+            server.send(200, "text/plain", "Cannon shot from APDS missile: " + String(pulseWidth) + " µs");
             delay(500);
             pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
             break;
 
-        case 111:  // machineGunShot
+        case 111:  // cannonShot - HE missile
             pulseWidth = 900;
             pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
-            server.send(200, "text/plain", "Machine gun shot: " + String(pulseWidth) + " µs");
+            server.send(200, "text/plain", "Cannon shot from HE missile: " + String(pulseWidth) + " µs");
             delay(500);
             pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
             break;
@@ -382,11 +383,11 @@ void setup() {
     server.on("/getIsLoaded", HTTP_GET, handleGetIsLoaded);
     server.on("/getIsLoaded", HTTP_OPTIONS, handleCORSOptions);
 
-    server.on("/setIsCanonLoaded", HTTP_POST, handleSetIsCanonLoaded);
-    server.on("/setIsCanonLoaded", HTTP_OPTIONS, handleCORSOptions);
+    server.on("/setisAPDSLoaded", HTTP_POST, handleSetisAPDSLoaded);
+    server.on("/setisAPDSLoaded", HTTP_OPTIONS, handleCORSOptions);
 
-    server.on("/setIsGunLoaded", HTTP_POST, handleSetIsGunLoaded);
-    server.on("/setIsGunLoaded", HTTP_OPTIONS, handleCORSOptions);
+    server.on("/setisHELoaded", HTTP_POST, handleSetisHELoaded);
+    server.on("/setisHELoaded", HTTP_OPTIONS, handleCORSOptions);
 
     server.on("/kill", HTTP_POST, killAllSignals);
 
@@ -395,7 +396,7 @@ void setup() {
     server.on("/centerTurret", HTTP_OPTIONS, handleCenteringTurret);
     server.on("/centerTurret", HTTP_POST, handleCenteringTurret);
 
-    server.begin();i
+    server.begin();
 }
 
 void loop() {    
