@@ -5,7 +5,6 @@
 #include <WiFiClient.h>
 #include <Wire.h>
 #include <ArduinoJson.h>  
-
 #include <map>
 
 // Initialize the servo driver
@@ -15,19 +14,25 @@ Adafruit_PWMServoDriver pwm;
 #define ROTATION_CHANNEL 1
 #define TURRET_CHANNEL 2
 #define CANNON_CHANNEL 3
+//to na dole do ustawienia/ zmiany zaleznie gdzie podlaczymy 
+#define SENSOR_PIN A0
+//to do przetestowania
+#define SENSOR_THRESHOLD_LOW 200   
+#define SENSOR_THRESHOLD_HIGH 800
+
 
 #define PCA9685_ADDR 0x40  // Default I2C address of PCA9685
 #define DEFAULT_PULSE 1500
 
 #define LED_PIN LED_BUILTIN
 
-const char* ssid = "Leopard";
+const char* ssid = "Leopard_2A6";    
 const char* password = "superczolg";
+
 ESP8266WebServer server(80);
 
-bool isGunLoaded = false;
-bool isCanonLoaded = false;
-int connectedClients = 0;
+bool isHELoaded = false; //machine gun -> HE (High Explosive)
+bool isAPDSLoaded = false; //cannon -> APDS 
 
 void addCORSHeaders() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -37,7 +42,7 @@ void addCORSHeaders() {
 
 void handleCORSOptions() {
     addCORSHeaders();
-    server.send(204);  // No Content
+    server.send(204);
 }
 
 void reset() {
@@ -85,48 +90,47 @@ void cancelCommander() {
 void cancelGunner() {
     addCORSHeaders();
     pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
+    pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
     server.send(200, "text/plain", "All gunner actions canceled");
 }
 
 void handleGetIsLoaded(){
     addCORSHeaders();
     StaticJsonDocument<248> doc;
-    doc["isCanonLoaded"] = isCanonLoaded;
-    doc["isGunLoaded"] = isGunLoaded;
+    doc["isAPDSLoaded"] = isAPDSLoaded;
+    doc["isHELoaded"] = isHELoaded;
     String response;
     serializeJson(doc, response);  
     server.send(200, "application/json", response);
 }
 
-void handleSetIsGunLoaded(){
+void handleSetisHELoaded(){
     addCORSHeaders();
-    isGunLoaded = !isGunLoaded;
+    isHELoaded = !isHELoaded;
     StaticJsonDocument<248> doc;
-    doc["isGunLoaded"] = isGunLoaded;
+    doc["isHELoaded"] = isHELoaded;
     String response;
     serializeJson(doc, response);
     server.send(200, "application/json", response);
 }
 
-void handleSetIsCanonLoaded(){
+void handleSetisAPDSLoaded(){
     addCORSHeaders();
-    isCanonLoaded = !isCanonLoaded;
+    isAPDSLoaded = !isAPDSLoaded;
     StaticJsonDocument<248> doc;
-    doc["isCanonLoaded"] = isCanonLoaded;
+    doc["isAPDSLoaded"] = isAPDSLoaded;
     String response;
     serializeJson(doc, response);
     server.send(200, "application/json", response);
 }
+
 float mapThrottle(float value1, float value2, int throttle) {
     if (throttle < 10) throttle = 10;
     if (throttle > 100) throttle = 100;
 
     float percentage = throttle / 100.0f;
 
-    float minVal = std::min(value1, value2);
-    float maxVal = std::max(value1, value2);
-
-    return minVal + (maxVal - minVal) * percentage;
+    return value1 + (value2 - value1) * percentage;
 }
 
 void handleDriver() {
@@ -164,7 +168,7 @@ void handleDriver() {
             break;
 
         case 103:  // turnLeft 1350-900
-            pulseWidth = mapThrottle(900, 1350, throttle);
+            pulseWidth = mapThrottle(1350, 900, throttle);
             pwm.writeMicroseconds(ROTATION_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Turning left: " + String(pulseWidth) + " µs");
             break;
@@ -186,6 +190,7 @@ void handleDriver() {
             break;
     }
 }
+
 
 void handleCommander() {
     addCORSHeaders();
@@ -209,13 +214,13 @@ void handleCommander() {
     int pulseWidth = DEFAULT_PULSE;
 
     switch (code) {
-        case 105:  // turretLeft 1300-1100 od lekko, do wixa w lewo
+        case 105:
             pulseWidth = mapThrottle(1300, 1100, throttle);
             pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Turret to the left: " + String(pulseWidth) + " µs");
             break;
 
-        case 106:  // turretRight 1600-2000 wolno do szybko w wiezy
+        case 106:
             pulseWidth = mapThrottle(1650, 2000, throttle);
             pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Turret to the right: " + String(pulseWidth) + " µs");
@@ -245,17 +250,31 @@ void handleGunner() {
     }
 
     int code = jsonDoc["code"] | -1;
+    int throttle = jsonDoc["throttle"] | 100;
     int pulseWidth = DEFAULT_PULSE;
 
     switch (code) {
+        case 105:
+            pulseWidth = mapThrottle(1300, 1100, throttle);
+            pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Turret to the left: " + String(pulseWidth) + " µs");
+            break;
+
+        case 106:
+
+            pulseWidth = mapThrottle(1650, 2000, throttle);
+            pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Turret to the right: " + String(pulseWidth) + " µs");
+            break;
+
         case 108:  // cannonUp
-            pulseWidth = 1100;
+            pulseWidth = 1800; //bylo 1900, zmieniam 1100 na 1200 
             pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Cannon up: " + String(pulseWidth) + " µs");
             break;
 
         case 109:  // cannonDown
-            pulseWidth = 1900;
+            pulseWidth = 1200; //bylo 1100, zmieniam 1900 na 1800
             pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Cannon down: " + String(pulseWidth) + " µs");
             break;
@@ -311,6 +330,27 @@ void handlePing() {
     digitalWrite(LED_PIN, HIGH);
 }
 
+void handleCenteringTurret() {
+    int sensorValue;
+    
+    while (true) {
+        sensorValue = analogRead(SENSOR_PIN);
+        
+        if (sensorValue < SENSOR_THRESHOLD_LOW) {
+            pwm.writeMicroseconds(TURRET_CHANNEL, 1900);
+        } else if (sensorValue > SENSOR_THRESHOLD_HIGH) {
+            pwm.writeMicroseconds(TURRET_CHANNEL, 1100);
+        } else {
+            break;  
+        }
+        
+        delay(10);
+    }
+    pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);  
+    server.send(200, "text/plain", "Turret centered");
+
+}
+
 void setup() {
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, HIGH);
@@ -322,8 +362,16 @@ void setup() {
     pwm.setPWMFreq(50);
     reset();
 
-    WiFi.softAP(ssid, password);
-    Serial.println("Web server started at: http://" + WiFi.softAPIP().toString());
+    // Connect to Wi-Fi
+    WiFi.begin(ssid, password);
+    Serial.print("Connecting to Wi-Fi");
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println();
+    Serial.println("Connected to Wi-Fi");
+    Serial.println("IP address: " + WiFi.localIP().toString());
 
     server.on("/driver", HTTP_OPTIONS, handleCORSOptions);
     server.on("/driver", HTTP_POST, handleDriver);
@@ -344,19 +392,21 @@ void setup() {
     server.on("/gunner/cancel", HTTP_OPTIONS, cancelGunner);
     server.on("/gunner/cancel", HTTP_POST, cancelGunner);
 
-
     server.on("/getIsLoaded", HTTP_GET, handleGetIsLoaded);
     server.on("/getIsLoaded", HTTP_OPTIONS, handleCORSOptions);
 
-    server.on("/setIsCanonLoaded", HTTP_POST, handleSetIsCanonLoaded);
-    server.on("/setIsCanonLoaded", HTTP_OPTIONS, handleCORSOptions);
+    server.on("/setisAPDSLoaded", HTTP_POST, handleSetisAPDSLoaded);
+    server.on("/setisAPDSLoaded", HTTP_OPTIONS, handleCORSOptions);
 
-    server.on("/setIsGunLoaded", HTTP_POST, handleSetIsGunLoaded);
-    server.on("/setIsGunLoaded", HTTP_OPTIONS, handleCORSOptions);
+    server.on("/setisHELoaded", HTTP_POST, handleSetisHELoaded);
+    server.on("/setisHELoaded", HTTP_OPTIONS, handleCORSOptions);
 
     server.on("/kill", HTTP_POST, killAllSignals);
 
     server.on("/ping", HTTP_GET, handlePing);
+
+    server.on("/centerTurret", HTTP_OPTIONS, handleCenteringTurret);
+    server.on("/centerTurret", HTTP_POST, handleCenteringTurret);
 
     server.begin();
 }
