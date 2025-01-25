@@ -333,18 +333,30 @@ void handlePing() {
 
 void handleCenteringTurret() {
     int sensorValue;
-    
+    bool centering = false;
     while (true) {
         sensorValue = analogRead(SENSOR_PIN);
         if (sensorValue > SENSOR_THRESHOLD_HIGH) {
             //zmienicv na 1900
-            pwm.writeMicroseconds(TURRET_CHANNEL, 1650);
+            if (!centering)
+            {
+                /* code */
+                pwm.writeMicroseconds(TURRET_CHANNEL, 1900);
+                centering = true
+            }
+            
         } else if (sensorValue < SENSOR_THRESHOLD_LOW) {
             //zminic na 1100
-            pwm.writeMicroseconds(TURRET_CHANNEL, 1300);
+            if (!centering)
+            {
+                pwm.writeMicroseconds(TURRET_CHANNEL, 1100);
+                centering = true
+            }
+
         }
         else  {
             pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
+            centering = false
             break;
         }
         
