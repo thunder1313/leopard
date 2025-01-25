@@ -335,7 +335,6 @@ void handleCenteringTurret() {
     
     while (true) {
         sensorValue = analogRead(SENSOR_PIN);
-        
         if (sensorValue < SENSOR_THRESHOLD_LOW) {
             pwm.writeMicroseconds(TURRET_CHANNEL, 1900);
         } else if (sensorValue > SENSOR_THRESHOLD_HIGH) {
@@ -413,4 +412,6 @@ void setup() {
 
 void loop() {    
     server.handleClient();
+    sensorValue = analogRead(SENSOR_PIN);
+    Serial.println(sensorValue)
 }
