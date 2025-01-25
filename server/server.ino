@@ -17,8 +17,9 @@ Adafruit_PWMServoDriver pwm;
 //to na dole do ustawienia/ zmiany zaleznie gdzie podlaczymy 
 #define SENSOR_PIN A0
 //to do przetestowania
-#define SENSOR_THRESHOLD_LOW 200   
-#define SENSOR_THRESHOLD_HIGH 800
+#define SENSOR_THRESHOLD_LOW 520  
+
+#define SENSOR_THRESHOLD_HIGH 540
 
 
 #define PCA9685_ADDR 0x40  // Default I2C address of PCA9685
@@ -335,17 +336,20 @@ void handleCenteringTurret() {
     
     while (true) {
         sensorValue = analogRead(SENSOR_PIN);
-        if (sensorValue < SENSOR_THRESHOLD_LOW) {
-            pwm.writeMicroseconds(TURRET_CHANNEL, 1900);
-        } else if (sensorValue > SENSOR_THRESHOLD_HIGH) {
-            pwm.writeMicroseconds(TURRET_CHANNEL, 1100);
-        } else {
-            break;  
+        if (sensorValue > SENSOR_THRESHOLD_HIGH) {
+            //zmienicv na 1900
+            pwm.writeMicroseconds(TURRET_CHANNEL, 1650);
+        } else if (sensorValue < SENSOR_THRESHOLD_LOW) {
+            //zminic na 1100
+            pwm.writeMicroseconds(TURRET_CHANNEL, 1300);
+        }
+        else  {
+            pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
+            break;
         }
         
         delay(10);
     }
-    pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);  
     server.send(200, "text/plain", "Turret centered");
 
 }
