@@ -412,6 +412,8 @@ void setup() {
 
 void loop() {    
     server.handleClient();
+    int sensorValue;
+
     sensorValue = analogRead(SENSOR_PIN);
     Serial.println(sensorValue)
 }
