@@ -90,6 +90,7 @@ void cancelCommander() {
 void cancelGunner() {
     addCORSHeaders();
     pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
+    pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
     server.send(200, "text/plain", "All gunner actions canceled");
 }
 
@@ -105,7 +106,7 @@ void handleGetIsLoaded(){
 
 void handleSetisHELoaded(){
     addCORSHeaders();
-    isHELoaded = isHELoaded;
+    isHELoaded = !isHELoaded;
     StaticJsonDocument<248> doc;
     doc["isHELoaded"] = isHELoaded;
     String response;
@@ -129,10 +130,7 @@ float mapThrottle(float value1, float value2, int throttle) {
 
     float percentage = throttle / 100.0f;
 
-    float minVal = std::min(value1, value2);
-    float maxVal = std::max(value1, value2);
-
-    return minVal + (maxVal - minVal) * percentage;
+    return value1 + (value2 - value1) * percentage;
 }
 
 void handleDriver() {
@@ -170,7 +168,7 @@ void handleDriver() {
             break;
 
         case 103:  // turnLeft 1350-900
-            pulseWidth = mapThrottle(900, 1350, throttle);
+            pulseWidth = mapThrottle(1350, 900, throttle);
             pwm.writeMicroseconds(ROTATION_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Turning left: " + String(pulseWidth) + " µs");
             break;
@@ -252,17 +250,31 @@ void handleGunner() {
     }
 
     int code = jsonDoc["code"] | -1;
+    int throttle = jsonDoc["throttle"] | 100;
     int pulseWidth = DEFAULT_PULSE;
 
     switch (code) {
+        case 105:
+            pulseWidth = mapThrottle(1300, 1100, throttle);
+            pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Turret to the left: " + String(pulseWidth) + " µs");
+            break;
+
+        case 106:
+
+            pulseWidth = mapThrottle(1650, 2000, throttle);
+            pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
+            server.send(200, "text/plain", "Turret to the right: " + String(pulseWidth) + " µs");
+            break;
+
         case 108:  // cannonUp
-            pulseWidth = 1100;
+            pulseWidth = 1800; //bylo 1900, zmieniam 1100 na 1200 
             pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Cannon up: " + String(pulseWidth) + " µs");
             break;
 
         case 109:  // cannonDown
-            pulseWidth = 1900;
+            pulseWidth = 1200; //bylo 1100, zmieniam 1900 na 1800
             pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Cannon down: " + String(pulseWidth) + " µs");
             break;
