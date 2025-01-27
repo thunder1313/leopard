@@ -334,15 +334,24 @@ void handlePing() {
 void handleCenteringTurret() {
     int sensorValue;
     bool centering = false;
+    int counter =0
     while (true) {
         sensorValue = analogRead(SENSOR_PIN);
-        if (sensorValue > SENSOR_THRESHOLD_HIGH) {
+        if (counter > 3000)
+        {
+            pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
+            centering = false
+            break;
+        }
+        
+        else if (sensorValue > SENSOR_THRESHOLD_HIGH) {
             //zmienicv na 1900
             if (!centering)
             {
                 /* code */
                 pwm.writeMicroseconds(TURRET_CHANNEL, 1900);
                 centering = true
+            
             }
             
         } else if (sensorValue < SENSOR_THRESHOLD_LOW) {
@@ -361,6 +370,7 @@ void handleCenteringTurret() {
         }
         
         delay(10);
+        counter +=10;
     }
     server.send(200, "text/plain", "Turret centered");
 
