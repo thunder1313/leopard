@@ -14,13 +14,15 @@ Adafruit_PWMServoDriver pwm;
 #define ROTATION_CHANNEL 1
 #define TURRET_CHANNEL 2
 #define CANNON_CHANNEL 3
+#define COMMANDER_CHANNEL 4
 //to na dole do ustawienia/ zmiany zaleznie gdzie podlaczymy 
 #define SENSOR_PIN A0
 //to do przetestowania
 #define SENSOR_THRESHOLD_LOW 520  
-
 #define SENSOR_THRESHOLD_HIGH 540
 
+#define SERVOMIN 150
+#define SERVOMAX 600
 
 #define PCA9685_ADDR 0x40  // Default I2C address of PCA9685
 #define DEFAULT_PULSE 1500
@@ -50,7 +52,7 @@ void reset() {
     pwm.writeMicroseconds(THROTTLE_CHANNEL, DEFAULT_PULSE);
     pwm.writeMicroseconds(ROTATION_CHANNEL, DEFAULT_PULSE);
     pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
-    pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
+    pwm.writeMicroseconds(CANNON_CHANNEL, 1700); //zmiana, żeby armata szła wyżej niż jej neutral
     Serial.println("Reset all signals");
 }
 
@@ -71,7 +73,9 @@ std::map<int, String> codeToOperation = {
     {109, "cannonDown"},
     {110, "cannonShot"},
     {111, "machineGunShot"},
-    {112, "engineOnOff"}};
+    {112, "engineOnOff"},
+    {113, "commanderLeft"},
+    {114, "commanderRight"}};
 
 void cancelDriver() {
     addCORSHeaders();
@@ -215,17 +219,17 @@ void handleCommander() {
     int pulseWidth = DEFAULT_PULSE;
 
     switch (code) {
-        case 105:
-            pulseWidth = mapThrottle(1300, 1100, throttle);
-            pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
-            server.send(200, "text/plain", "Turret to the left: " + String(pulseWidth) + " µs");
-            break;
+        case 113: //left
+          pulseWidth = 250;
+          pwm.writeMicroseconds(COMMANDER_CHANNEL, pulseWidth);
+          server.send(200, "text/plain", "Rotating commander tower to the left: " + String(pulseWidth) + " µs");
+          break;
 
-        case 106:
-            pulseWidth = mapThrottle(1650, 2000, throttle);
-            pwm.writeMicroseconds(TURRET_CHANNEL, pulseWidth);
-            server.send(200, "text/plain", "Turret to the right: " + String(pulseWidth) + " µs");
-            break;
+        case 114: //right
+          pulseWidth = 500;
+          pwm.writeMicroseconds(COMMANDER_CHANNEL, pulseWidth);
+          server.send(200, "text/plain", "Rotating commander tower to the right: " + String(pulseWidth) + " µs");
+          break;
 
         default:
             server.send(400, "text/plain", "Invalid operation code for Commander");
@@ -269,13 +273,13 @@ void handleGunner() {
             break;
 
         case 108:  // cannonUp
-            pulseWidth = 1800; //bylo 1900, zmieniam 1100 na 1200 
+            pulseWidth = 1900; //bylo 1900, zmieniam 1100 na 1200 
             pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Cannon up: " + String(pulseWidth) + " µs");
             break;
 
         case 109:  // cannonDown
-            pulseWidth = 1200; //bylo 1100, zmieniam 1900 na 1800
+            pulseWidth = 1100; //bylo 1100, zmieniam 1900 na 1800
             pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Cannon down: " + String(pulseWidth) + " µs");
             break;
@@ -334,13 +338,13 @@ void handlePing() {
 void handleCenteringTurret() {
     int sensorValue;
     bool centering = false;
-    int counter =0
+    int counter = 0;
     while (true) {
         sensorValue = analogRead(SENSOR_PIN);
         if (counter > 3000)
         {
             pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
-            centering = false
+            centering = false;
             break;
         }
         
@@ -350,7 +354,7 @@ void handleCenteringTurret() {
             {
                 /* code */
                 pwm.writeMicroseconds(TURRET_CHANNEL, 1900);
-                centering = true
+                centering = true;
             
             }
             
@@ -359,13 +363,13 @@ void handleCenteringTurret() {
             if (!centering)
             {
                 pwm.writeMicroseconds(TURRET_CHANNEL, 1100);
-                centering = true
+                centering = true;
             }
 
         }
         else  {
             pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
-            centering = false
+            centering = false;
             break;
         }
         
