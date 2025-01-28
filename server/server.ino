@@ -17,8 +17,8 @@ Adafruit_PWMServoDriver pwm;
 #define COMMANDER_CHANNEL 4
 
 #define SENSOR_PIN A0
-#define SENSOR_THRESHOLD_LOW 520  
-#define SENSOR_THRESHOLD_HIGH 540
+#define SENSOR_THRESHOLD_LOW 530  
+#define SENSOR_THRESHOLD_HIGH 535
 
 #define PCA9685_ADDR 0x40  // Default I2C address of PCA9685
 #define DEFAULT_PULSE 1500
@@ -35,8 +35,8 @@ bool isAPDSLoaded = false; // cannon -> APDS
 
 // Commander tower global variable and min/max pulses
 int commanderPulse = DEFAULT_PULSE;
-#define MIN_COMMANDER_PULSE 500;
-#define MAX_COMMANDER_PULSE 2500;
+#define MIN_COMMANDER_PULSE 500
+#define MAX_COMMANDER_PULSE 2500
 
 void addCORSHeaders() {
     server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -51,7 +51,7 @@ void handleCORSOptions() {
 
 void resetCannon() {
   pwm.writeMicroseconds(CANNON_CHANNEL, 1900);
-  delay(2000);
+  delay(2500);
   pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
 }
 
@@ -60,7 +60,6 @@ void reset() {
   pwm.writeMicroseconds(ROTATION_CHANNEL, DEFAULT_PULSE);
   pwm.writeMicroseconds(TURRET_CHANNEL, DEFAULT_PULSE);
   pwm.writeMicroseconds(COMMANDER_CHANNEL, DEFAULT_PULSE);
-
   Serial.println("Reset all signals");
 }
 
@@ -230,7 +229,7 @@ void handleCommander() {
 
   switch (code) {
     case 113: //left
-      if (commanderPulse != 2500) {
+      if (commanderPulse != MAX_COMMANDER_PULSE) {
         commanderPulse += 50;
         pwm.writeMicroseconds(COMMANDER_CHANNEL, commanderPulse);
         server.send(200, "text/plain", "Rotating commander tower to the left");
@@ -241,7 +240,7 @@ void handleCommander() {
 
     case 114: //right
       pulseWidth = 500;
-      if (commanderPulse != 500) {
+      if (commanderPulse != MIN_COMMANDER_PULSE) {
         commanderPulse -= 50;
         pwm.writeMicroseconds(COMMANDER_CHANNEL, commanderPulse);
         server.send(200, "text/plain", "Rotating commander tower to the right");
@@ -291,13 +290,13 @@ void handleGunner() {
       break;
 
     case 108:  // cannonUp
-      pulseWidth = 1900; //bylo 1900, zmieniam 1100 na 1200 
+      pulseWidth = 1900;
       pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
       server.send(200, "text/plain", "Cannon up: " + String(pulseWidth) + " µs");
       break;
 
     case 109:  // cannonDown
-      pulseWidth = 1100; //bylo 1100, zmieniam 1900 na 1800
+      pulseWidth = 1100;
       pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
       server.send(200, "text/plain", "Cannon down: " + String(pulseWidth) + " µs");
       break;
@@ -398,6 +397,7 @@ void setup() {
   pwm.begin();
   pwm.setPWMFreq(50);
   reset();
+  delay(3500);
   resetCannon();
 
   // Connect to Wi-Fi
