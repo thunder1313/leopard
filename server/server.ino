@@ -440,9 +440,9 @@ void setup() {
   server.on("/driver/cancel", HTTP_OPTIONS, cancelDriver);
   server.on("/driver/cancel", HTTP_POST, cancelDriver);
   server.on("/driver/cancel/rotation", HTTP_OPTIONS, handleCORSOptions);
-  server.on("/driver/cancel/rotation", HTTP_POST, cancelDriverMoving);
+  server.on("/driver/cancel/rotation", HTTP_POST, cancelDriverRotation);
   server.on("/driver/cancel/moving", HTTP_OPTIONS, handleCORSOptions);
-  server.on("/driver/cancel/moving", HTTP_POST, cancelDriverRotation);
+  server.on("/driver/cancel/moving", HTTP_POST, cancelDriverMoving);
   server.on("/commander/cancel", HTTP_OPTIONS, cancelCommander);
   server.on("/commander/cancel", HTTP_POST, cancelCommander);
   server.on("/gunner/cancel", HTTP_OPTIONS, cancelGunner);
