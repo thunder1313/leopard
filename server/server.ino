@@ -88,12 +88,12 @@ std::map<int, String> codeToOperation = {
   {114, "commanderRight"}
 };
 
-// void cancelDriver() {
-//   addCORSHeaders();
-//   pwm.writeMicroseconds(THROTTLE_CHANNEL, DEFAULT_PULSE);
-//   pwm.writeMicroseconds(ROTATION_CHANNEL, DEFAULT_PULSE);
-//   server.send(200, "text/plain", "All driver actions canceled");
-// }
+void cancelDriver() {
+  addCORSHeaders();
+  pwm.writeMicroseconds(THROTTLE_CHANNEL, DEFAULT_PULSE);
+  pwm.writeMicroseconds(ROTATION_CHANNEL, DEFAULT_PULSE);
+  server.send(200, "text/plain", "All driver actions canceled");
+}
 void cancelDriverMoving(){
   addCORSHeaders();
   pwm.writeMicroseconds(THROTTLE_CHANNEL, DEFAULT_PULSE);
