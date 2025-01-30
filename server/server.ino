@@ -94,11 +94,13 @@ std::map<int, String> codeToOperation = {
 //   server.send(200, "text/plain", "All driver actions canceled");
 // }
 void cancelDriverMoving(){
+  addCORSHeaders();
   pwm.writeMicroseconds(THROTTLE_CHANNEL, DEFAULT_PULSE);
   server.send(200, "text/plain", "All driver actions canceled");
 
 }
 void cancelDriverRotation(){
+    addCORSHeaders();
   pwm.writeMicroseconds(ROTATION_CHANNEL, DEFAULT_PULSE);
   server.send(200, "text/plain", "All driver actions canceled");
 
@@ -433,11 +435,11 @@ void setup() {
   server.on("/loader", HTTP_OPTIONS, handleCORSOptions);
   server.on("/loader", HTTP_POST, handleLoader);
 
-  // server.on("/driver/cancel", HTTP_OPTIONS, cancelDriver);
-  // server.on("/driver/cancel", HTTP_POST, cancelDriver);
-  server.on("/driver/cancel/rotation", HTTP_OPTIONS, cancelDriverMoving);
+  server.on("/driver/cancel", HTTP_OPTIONS, cancelDriver);
+  server.on("/driver/cancel", HTTP_POST, cancelDriver);
+  server.on("/driver/cancel/rotation", HTTP_OPTIONS, handleCORSOptions);
   server.on("/driver/cancel/rotation", HTTP_POST, cancelDriverMoving);
-  server.on("/driver/cancel/moving", HTTP_OPTIONS, cancelDriverRotation);
+  server.on("/driver/cancel/moving", HTTP_OPTIONS, handleCORSOptions);
   server.on("/driver/cancel/moving", HTTP_POST, cancelDriverRotation);
   server.on("/commander/cancel", HTTP_OPTIONS, cancelCommander);
   server.on("/commander/cancel", HTTP_POST, cancelCommander);
