@@ -6,6 +6,7 @@
 #include <Wire.h>
 #include <ArduinoJson.h>  
 #include <map>
+#include <IRremote.h>
 
 // Initialize the servo driver
 Adafruit_PWMServoDriver pwm;
@@ -29,6 +30,7 @@ Adafruit_PWMServoDriver pwm;
 
 const char* ssid = "Leopard_2A6";    
 const char* password = "superczolg";
+IRsend irsend(IR_LED_PIN);
 
 ESP8266WebServer server(80);
 
@@ -284,6 +286,7 @@ void handleGunner() {
             pulseWidth = 2100;
             pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
             server.send(200, "text/plain", "Cannon shot: " + String(pulseWidth) + " µs");
+            IrSender.sendNEC(0x10EF20DF);   
             delay(500);
             pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
             break;
@@ -379,6 +382,7 @@ void handleCenteringTurret() {
 void setup() {
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, HIGH);
+    IrSender.begin(IR_LED_PIN)
 
     Serial.begin(115200);
     Wire.begin(D2, D1);
