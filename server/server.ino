@@ -25,6 +25,7 @@ Adafruit_PWMServoDriver pwm;
 #define DEFAULT_PULSE 1500
 
 #define LED_PIN LED_BUILTIN
+#define IR_LED_PIN D5
 
 const char* ssid = "Leopard_2A6";    
 const char* password = "superczolg";
@@ -316,7 +317,8 @@ void handleGunner() {
       pulseWidth = 2100;
       pwm.writeMicroseconds(CANNON_CHANNEL, pulseWidth);
       server.send(200, "text/plain", "Cannon shot: " + String(pulseWidth) + " µs");
-        IrSender.sendNEC(0x10EF20DF);   
+      // wysyłanie sygnału z diody podczerwieni
+      IrSender.sendNEC(0x10EF, 0x20DF, 0);
       delay(500);
       pwm.writeMicroseconds(CANNON_CHANNEL, DEFAULT_PULSE);
       break;
